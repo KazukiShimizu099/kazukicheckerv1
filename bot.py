@@ -1034,7 +1034,7 @@ async def on_message(message):
             return
 
 async def show_help(ch, user):
-    embed = discord.Embed(title="👻 Kazuki Help Menu", color=0xAA00FF)
+    embed = discord.Embed(title="Kazuki Help Menu", color=0xAA00FF)
     embed.add_field(
         name="⚙️ Checker Commands", 
         value="💬 `xcheck [v1-v4]` — Start check session (upload combo file)\n🔄 `xtoggle on/off` — Enable/disable bot in this channel\n🛑 `xstop` — Stop your active session\n⏸️ `xpause` — Pause/resume your session\n📊 `xstats` — View live stats of your session\n🔢 `xversion [v1-v4]` — Get/set default checker version\n🆔 `xsget <id>` — View detailed session stats & recent hits\n📦 `xcombos show` — Show your saved combo files\n🔌 `xdisable <module>` — Disable a checker module\n🔌 `xenable <module>` — Re-enable a checker module\n⚙️ `xmodules` — List all modules and their status\n📤 `xdrop <session_id>` — Export and drop all results/captures\n🔍 `xsearch` — Search checked accounts by query\n📡 `xcheckproxies` — Test proxy speeds and quality rating", 
@@ -1042,7 +1042,7 @@ async def show_help(ch, user):
     )
     if is_owner(user.id):
         embed.add_field(
-            name="👑 Owner Commands", 
+            name=" Owner Commands", 
             value="📋 `xwl add/remove/list <id>` — Whitelist administration\n💀 `xkillall` — Force stop all active sessions\n🥾 `xkick <user_id>` — Force stop a user's session\n📡 `xsessions` — View list of all active sessions\n📢 `xbroadcast <msg>` — Send a DM to all whitelisted users", 
             inline=False
         )
