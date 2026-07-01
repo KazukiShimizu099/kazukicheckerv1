@@ -594,28 +594,42 @@ class CheckSession:
     def stats_layout(self):
         c = self.C; total = len(self.combos); done = c["checked"]
         pct = max(0.0, min(1.0, done / total if total else 0.0))
-        bar = "█" * int(18 * pct) + "░" * (18 - int(18 * pct))
+        bar = "█" * int(10 * pct) + "░" * (10 - int(10 * pct)) # Bar chhota kiya taaki embed clean dikhe
         ver = VERSIONS.get(self.version, {}).get("name", self.version.upper())
         state = "▶️ Running" if (self.running and not self.paused) else ("⏸️ Paused" if self.paused else "✅ Done")
-        
         color = 0x00FF00 if (self.running and not self.paused) else (0xFFAA00 if self.paused else 0x0099FF)
         
         embed = discord.Embed(title="👻 Kazuki Live Stats", color=color)
+        
+        # 1. Progress Bar Section
         embed.add_field(
-            name="📊 Progress",
-            value=f"`[{bar}]` **{pct*100:.1f}%**\n> Checked: `{done}` / `{total}`  •  ⚡ CPM: `{self.cpm()}`  •  ⏳ ETA: `{self.eta()}`\n-# 🆔 Session: `{self.session_id}`  •  🔢 Version: **{ver}** •  ⚙️ State: **{state}**",
+            name="📊 Progress Overview",
+            value=f"`[{bar}]` **{pct*100:.1f}%**\n**Status:** {state}\n**ETA:** `{self.eta()}` | **Speed:** `{self.cpm()} CPM`",
             inline=False
         )
+        
+        # 2. Main Stats (Hits, Bad, etc)
         embed.add_field(
-            name="🎯 Results Summary",
-            value=f"✅ **Hits:** `{c['hits']}`  •  ❌ **Bad:** `{c['bad']}`  •  📧 **VM:** `{c['vm']}`\n🔒 **2FA:** `{c['twofa']}`  •  🛡️ **SFA:** `{c['sfa']}`  •  🔑 **MFA:** `{c['mfa']}`\n🎮 **XGPU:** `{c['xgpu']}`  •  🎮 **XGP:** `{c['xgp']}`  •  📦 **Other:** `{c['other']}`",
-            inline=False
+            name="🎯 Core Results",
+            value=f"✅ Hits: `{c['hits']}`\n❌ Bad: `{c['bad']}`\n📧 VM: `{c['vm']}`\n🔒 2FA: `{c['twofa']}`",
+            inline=True
         )
         embed.add_field(
-            name="💎 Services & Subscriptions",
-            value=f"💎 **Nitro:** ✅ `{c['nitro_hit']}`  •  ❌ `{c['nitro_none']}`\n🎁 **Promos:** ✅ `{c['promo_hit']}`  •  ❌ `{c['promo_bad']}`\n> EA: `{c['promo_ea']}`  •  PC: `{c['promo_pc']}`  •  3m: `{c['promo_3m']}`  •  1m: `{c['promo_1m']}`\n💳 **Billing:** ✅ `{c['billing_hit']}`  •  ❌ `{c['billing_bad']}`  •  🚀 **Boosts:** `{c['boost_hit']}`\n🎵 **Spotify:** `{c['spotify_hit']}`  •  🎬 **Netflix:** `{c['netflix_hit']}`  •  📦 **Prime:** `{c['prime_hit']}`\n🔄 **Migration:** Migrated: `{c['migrated']}`  •  Unmigrated: `{c['unmigrated']}`  •  Legacy: `{c['legacy']}`\n⚙️ **Meta:** 🔁 Retries: `{c['retries']}`  •  ⚠️ Errors: `{c['errors']}`",
-            inline=False
+            name="🛡️ Access Stats",
+            value=f"🛡️ SFA: `{c['sfa']}`\n🔑 MFA: `{c['mfa']}`\n📦 Other: `{c['other']}`\n🎮 XGPU: `{c['xgpu']}`",
+            inline=True
         )
+        
+        # 3. Services Summary
+        services_text = (
+            f"💎 **Nitro:** `{c['nitro_hit']}` | 🎁 **Promos:** `{c['promo_hit']}`\n"
+            f"💳 **Billing:** `{c['billing_hit']}` | 🚀 **Boosts:** `{c['boost_hit']}`\n"
+            f"🎵 **Spotify:** `{c['spotify_hit']}` | 🎬 **Netflix:** `{c['netflix_hit']}`\n"
+            f"📦 **Prime:** `{c['prime_hit']}`"
+        )
+        embed.add_field(name="💎 Services", value=services_text, inline=False)
+        
+        embed.set_footer(text=f"Session: {self.session_id} • Version: {ver}")
         return embed
 
     def process(self, combo):
