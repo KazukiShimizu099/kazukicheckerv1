@@ -123,7 +123,7 @@ def set_disabled(uid, lst):
     save_data(bot_data)
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  AUTH ENGINE (NO CHANGES - OPTIMIZED)
+#  AUTH ENGINE
 # ══════════════════════════════════════════════════════════════════════════════
 
 def get_thread_session(proxy=None):
@@ -1357,7 +1357,247 @@ async def cmd_search(ctx):
         await dm.send("❌ Not found."); return
         
     embed_res = discord.Embed(title=f"🔍 Search Results for `{query}`", color=0x00FF00)
-   for kind, loc, data in found[:10]:
+    for kind, loc, data in found[:10]:
         if kind == "capture":
-            val_str = f"
-http://googleusercontent.com/immersive_entry_chip/0
+            val_str = f"```\n{data[:250]}\n```"
+            embed_res.add_field(name=f"📋 Capture in `{loc}`", value=val_str, inline=False)
+        else:
+            val_str = f"`{data[:180]}`"
+            embed_res.add_field(name=f"📄 File: `{loc}`", value=val_str, inline=False)
+
+    if len(found)>10:
+        embed_res.set_footer(text=f"And {len(found)-10} more results...")
+
+    await dm.send(embed=embed_res)
+
+def _proxy_layout(job):
+    pct = max(0.0, min(1.0, job.checked / job.total if job.total else 0.0))
+    bar="█"*int(18*pct)+"░"*(18-int(18*pct))
+
+    embed = discord.Embed(title="📡 Proxy Checker Status", color=0x00AAFF)
+    embed.add_field(
+        name="📊 Progress",
+        value=f"`[{bar}]` **{pct*100:.1f}%**\n> Checked: `{job.checked}` / `{job.total}`\n-# Status: **{'Running...' if job.running else 'Done ✅'}**",
+        inline=False
+    )
+
+    stats_lines = []
+    for pt in ["http","socks4","socks5"]:
+        w=len(job.results[pt]["working"]); d=len(job.results[pt]["dead"])
+        stats_lines.append(f"🌐 **{pt.upper()}**: Working: `{w}`  •  Dead: `{d}`")
+    embed.add_field(name="🚀 Protocols", value="\n".join(stats_lines), inline=False)
+
+    h=len([x for x in job.good_for_mc if x[0]=="HIGH"])
+    m=len([x for x in job.good_for_mc if x[0]=="MID"])
+    l=len([x for x in job.good_for_mc if x[0]=="LOW"])
+    embed.add_field(name="⚡ Minecraft Quality Tiers", value=f"🟢 **HIGH**: `{h}`\n🟡 **MID**: `{m}`\n🔴 **LOW**: `{l}`", inline=False)
+
+    return embed
+
+@bot.command(name="checkproxies")
+async def cmd_checkproxies(ctx):
+    if not is_wl(ctx.author.id): await ctx.send("❌ Not whitelisted."); return
+    try:
+        dm=await ctx.author.create_dm()
+        await dm.send("📎 Upload your proxy file (.txt/.zip, one `ip:port` per line)")
+    except discord.Forbidden:
+        await ctx.send("❌ Cannot send DM. Please open your DMs first!")
+        return
+
+    def chk(m): return m.author.id==ctx.author.id and isinstance(m.channel,discord.DMChannel) and m.attachments and not m.content.strip().lower().startswith("x")
+    try:
+        att_msg=await bot.wait_for("message",check=chk,timeout=60)
+    except asyncio.TimeoutError:
+        await dm.send("⏰ Timed out."); return
+
+    proxies=await extract_proxies(att_msg.attachments[0])
+    if not proxies: await dm.send("❌ No proxies found."); return
+
+    job=ProxyCheckJob(ctx.author.id, proxies)
+    proxy_check_jobs[ctx.author.id]=job
+
+    msg=await dm.send(embed=_proxy_layout(job))
+
+    async def run_job():
+        try:
+            loop=asyncio.get_event_loop()
+            async def updater():
+                try:
+                    while job.running:
+                        await asyncio.sleep(4)
+                        if not job.running:
+                            break
+                        try: await msg.edit(embed=_proxy_layout(job))
+                        except: pass
+                except asyncio.CancelledError:
+                    pass
+
+            async def runner():
+                try:
+                    await loop.run_in_executor(None, lambda: job.run(30))
+                finally:
+                    job.running=False
+
+            await asyncio.gather(runner(), updater())
+            try: await msg.edit(embed=_proxy_layout(job))
+            except: pass
+            buf=job.zip_results()
+            high=len([x for x in job.good_for_mc if x[0]=="HIGH"])
+            mid= len([x for x in job.good_for_mc if x[0]=="MID"])
+            low= len([x for x in job.good_for_mc if x[0]=="LOW"])
+            all_w=len(set(p for pt in job.results.values() for p in pt["working"]))
+            await dm.send(
+                content=(f"✅ **Proxy check done!**\n"
+                         f"Total: `{len(proxies)}` · Working: `{all_w}`\n"
+                         f"MC Quality — 🟢HIGH:`{high}` 🟡MID:`{mid}` 🔴LOW:`{low}`")
+            )
+            await dm.send(file=discord.File(buf,"Kazuki_proxies.zip"))
+        except Exception as e:
+            job.running=False
+            print(f"[Kazuki Checker Error in proxy check job: {e}")
+        finally:
+            job.running=False
+            proxy_check_jobs.pop(ctx.author.id,None)
+
+    asyncio.create_task(run_job())
+
+@bot.command(name="modules")
+async def cmd_modules(ctx):
+    if not is_wl(ctx.author.id): await ctx.send("❌ Not whitelisted."); return
+    disabled=get_disabled(ctx.author.id)
+    embed = discord.Embed(title="⚙️ Checker Modules", color=0xAA00FF)
+    lines=[]
+    for mod in CHECKER_MODULES:
+        st="❌ OFF" if mod in disabled else "✅ ON"
+        lines.append(f"🔌 `{mod}` — **{st}**")
+
+    embed.description = "💡 Enable or disable modules using `xenable <name>` or `xdisable <name>`.\n\n" + "\n".join(lines)
+    await ctx.send(embed=embed)
+
+@bot.command(name="disable")
+async def cmd_disable(ctx, module=None):
+    if not is_wl(ctx.author.id): await ctx.send("❌ Not whitelisted."); return
+    if not module or module not in CHECKER_MODULES:
+        await ctx.send(f"❌ Valid modules: {', '.join(f'`{m}`' for m in CHECKER_MODULES)}"); return
+    dis=get_disabled(ctx.author.id)
+    if module not in dis: dis.append(module)
+    set_disabled(ctx.author.id,dis)
+    await ctx.send(f"❌ `{module}` disabled.")
+
+@bot.command(name="enable")
+async def cmd_enable(ctx, module=None):
+    if not is_wl(ctx.author.id): await ctx.send("❌ Not whitelisted."); return
+    if not module or module not in CHECKER_MODULES:
+        await ctx.send(f"❌ Valid modules: {', '.join(f'`{m}`' for m in CHECKER_MODULES)}"); return
+    dis=get_disabled(ctx.author.id)
+    if module in dis: dis.remove(module)
+    set_disabled(ctx.author.id,dis)
+    await ctx.send(f"✅ `{module}` enabled.")
+
+
+@bot.command(name="toggle")
+async def cmd_toggle(ctx, action: str = None):
+    is_admin = (is_owner(ctx.author.id) or
+                (hasattr(ctx.author, "guild_permissions") and
+                 ctx.author.guild_permissions.administrator))
+    if not is_admin:
+        await ctx.send("❌ Server admin or owner only."); return
+    if isinstance(ctx.channel, discord.DMChannel):
+        await ctx.send("❌ Can only toggle in server channels."); return
+
+    ch_id = ctx.channel.id
+    if action is None:
+        state = "✅ Enabled" if is_enabled_channel(ch_id) else "❌ Disabled"
+        await ctx.send(f"Kazuki Checker in <#{ch_id}>: **{state}**\nUse `xtoggle on` or `xtoggle off`")
+        return
+
+    if action.lower() in ("on", "enable", "true", "1"):
+        toggle_channel(ch_id, True)
+        await ctx.send(f"✅ Kazuki Checker **enabled** in <#{ch_id}>\nWhitelisted users can now use all commands here.")
+    elif action.lower() in ("off", "disable", "false", "0"):
+        toggle_channel(ch_id, False)
+        await ctx.send(f"❌ Kazuki Checker **disabled** in <#{ch_id}>")
+    else:
+        await ctx.send("Usage: `xtoggle on` / `xtoggle off`")
+
+@bot.command(name="channels")
+async def cmd_channels(ctx):
+    if not is_owner(ctx.author.id): await ctx.send("❌ Owner only."); return
+    lst = bot_data.get("enabled_channels", [])
+    if not lst: await ctx.send("No channels enabled."); return
+    lines = []
+    for ch_id in lst:
+        ch = bot.get_channel(int(ch_id))
+        if ch: lines.append(f"✅ <#{ch_id}> (`{ch.guild.name}` → `{ch.name}`)")
+        else:  lines.append(f"✅ `{ch_id}` (unknown channel)")
+    embed = discord.Embed(title="📡 Enabled Channels", description="\n".join(lines), color=0xAA00FF)
+    await ctx.send(embed=embed)
+
+@bot.command(name="help")
+async def cmd_help(ctx):
+    if not is_wl(ctx.author.id): await ctx.send("❌ Not whitelisted."); return
+    await show_help(ctx.channel, ctx.author)
+
+# ── Owner ────────────────────────────────────────────────────────────────────
+
+@bot.command(name="wl")
+async def cmd_wl(ctx, action=None, user_id:str=None):
+    if not is_owner(ctx.author.id): await ctx.send("❌ Owner only."); return
+    uid = None
+    if user_id:
+        try: uid = int(user_id.strip("<@!>"))
+        except: await ctx.send("❌ Invalid user ID or mention."); return
+
+    if action=="add" and uid:
+        if uid not in bot_data["whitelist"]: bot_data["whitelist"].append(uid); save_data(bot_data)
+        await ctx.send(f"✅ `{uid}` whitelisted.")
+    elif action=="remove" and uid:
+        if uid in bot_data["whitelist"]: bot_data["whitelist"].remove(uid); save_data(bot_data)
+        await ctx.send(f"✅ `{uid}` removed.")
+    elif action=="list":
+        wl=bot_data.get("whitelist",[])
+        await ctx.send(f"📋 Whitelist ({len(wl)}):\n"+("\n".join(f"`{x}`" for x in wl) or "Empty"))
+    else: await ctx.send("Usage: `xwl add/remove/list <id or @user>`")
+
+@bot.command(name="killall")
+async def cmd_killall(ctx):
+    if not is_owner(ctx.author.id): await ctx.send("❌ Owner only."); return
+    n=0
+    for s in active_sessions.values(): s.running=False; n+=1
+    await ctx.send(f"🛑 Killed `{n}` session(s).")
+
+@bot.command(name="kick")
+async def cmd_kick(ctx, user_id:str=None):
+    if not is_owner(ctx.author.id): await ctx.send("❌ Owner only."); return
+    uid = None
+    if user_id:
+        try: uid = int(user_id.strip("<@!>"))
+        except: await ctx.send("❌ Invalid user ID or mention."); return
+    if not uid: await ctx.send("Usage: `xkick <id or @user>`"); return
+
+    s=active_sessions.get(uid)
+    if s: s.running=False; await ctx.send(f"🛑 Killed `{uid}`.")
+    else: await ctx.send("No session found.")
+
+@bot.command(name="sessions")
+async def cmd_sessions(ctx):
+    if not is_owner(ctx.author.id): await ctx.send("❌ Owner only."); return
+    if not active_sessions: await ctx.send("No active sessions."); return
+    lines=[f"`{uid}` sid=`{s.session_id}` {s.C['checked']}/{len(s.combos)} hits={s.C['hits']} cpm={s.cpm()}"
+           for uid,s in active_sessions.items()]
+    await ctx.send("**Sessions:**\n"+"\n".join(lines))
+
+@bot.command(name="broadcast")
+async def cmd_broadcast(ctx, *, msg=None):
+    if not is_owner(ctx.author.id): await ctx.send("❌ Owner only."); return
+    if not msg: await ctx.send("Usage: `xbroadcast <msg>`"); return
+    sent=0
+    for uid in bot_data.get("whitelist",[]):
+        try: u=await bot.fetch_user(uid); await u.send(f"📢 **Owner:** {msg}"); sent+=1
+        except: pass
+    await ctx.send(f"✅ Sent to `{sent}`.")
+
+if TOKEN is None or TOKEN == "" or TOKEN == "YOUR_BOT_TOKEN_HERE":
+    print("Error: DISCORD_TOKEN is missing in environment variables!")
+else:
+    bot.run(TOKEN)
