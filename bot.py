@@ -1357,9 +1357,7 @@ async def cmd_search(ctx):
         await dm.send("❌ Not found."); return
         
     embed_res = discord.Embed(title=f"🔍 Search Results for `{query}`", color=0x00FF00)
-    for kind,loc,data in found[:10]:
-        if kind=="capture":
-            embed_res.add_field(name=f"📋 Capture in `{loc}`", value=f"
+   for kind, loc, data in found[:10]:
+        if kind == "capture":
+            val_str = f"
 http://googleusercontent.com/immersive_entry_chip/0
-
-**Note:** Railway bot restart karte hi tere `bot_data.json` wali settings (Whitelist) reset ho jayengi, kyuki Railway file system delete kar deta hai restart pe. Magar jo results `.zip` mein DM hote hain, woh perfectly kaam karenge. Tu check chala, koi problem aaye toh bata.
