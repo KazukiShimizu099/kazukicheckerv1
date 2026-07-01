@@ -1775,7 +1775,7 @@ async def cmd_broadcast(ctx, *, msg=None):
         except: pass
     await ctx.send(f"✅ Sent to `{sent}`.")
 
-if __name__=="__main__":
-    if BOT_TOKEN=="YOUR_BOT_TOKEN_HERE":
-        print("Set BOT_TOKEN env var"); sys.exit(1)
-    bot.run(BOT_TOKEN)
+if TOKEN is None or TOKEN == "" or TOKEN == "YOUR_BOT_TOKEN_HERE":
+    print("Error: DISCORD_TOKEN is missing in environment variables!")
+else:
+    bot.run(TOKEN)
