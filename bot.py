@@ -1085,7 +1085,7 @@ async def on_message(message):
             return
 
 async def show_help(ch, user):
-    layout = ui.LayoutView()
+    layout = discord.ui.View()  # Ya agar upar 'from discord import ui' kiya hai toh ui.View()
     container = ui.Container(accent_color=discord.Colour.from_rgb(170, 0, 255))
     container.add_item(ui.TextDisplay("# 👻 Kazuki Help Menu"))
     container.add_item(ui.Separator())
