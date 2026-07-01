@@ -20,7 +20,7 @@ warnings.filterwarnings("ignore")
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 OWNER_ID   = 1131420466280669274
-BOT_TOKEN  = os.environ.get("BOT_TOKEN", "MTUyMTc2MDA4NTQ5ODY1ODg1Ng.GpnqGD.saweZxtweWhhWI9uq09YAD9x9opL5tAN-jmIYU")
+TOKEN = os.environ.get("DISCORD_TOKEN")
 DATA_FILE  = "data/bot_data.json"
 RESULTS_BASE = "results"
 COMBOS_DIR   = "data/combos"

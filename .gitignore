@@ -1,0 +1,5 @@
+# .gitignore file mein ye lines add kar
+data/
+results/
+*.json
+.env
